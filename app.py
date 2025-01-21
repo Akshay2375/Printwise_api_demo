@@ -8,6 +8,15 @@ import os
 from typing import Optional
 import uuid
 
+import os
+
+if __name__ == "__main__":
+    import uvicorn
+
+    # Use the port provided by Render, or default to 8000 for local testing
+    port = int(os.environ.get("PORT", 8000))
+    uvicorn.run("app:app", host="0.0.0.0", port=port, reload=True)
+
 app = FastAPI()
 
 # Database setup
