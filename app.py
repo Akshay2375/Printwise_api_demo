@@ -8,15 +8,7 @@ import os
 from typing import Optional
 import uuid
 
-import os
-
-if __name__ == "__main__":
-    import uvicorn
-
-    # Use the port provided by Render, or default to 8000 for local testing
-    port = int(os.environ.get("PORT", 8000))
-    uvicorn.run("app:app", host="0.0.0.0", port=port, reload=True)
-
+# FastAPI app initialization
 app = FastAPI()
 
 # Database setup
@@ -29,7 +21,6 @@ Base = declarative_base()
 GENERATED_PDFS_DIR = "generated_pdfs"
 os.makedirs(GENERATED_PDFS_DIR, exist_ok=True)
 
-
 # Database model
 class PDFFile(Base):
     __tablename__ = "pdf_files"
@@ -38,10 +29,8 @@ class PDFFile(Base):
     file_name = Column(String)
     file_path = Column(String)
 
-
 # Create the table
 Base.metadata.create_all(bind=engine)
-
 
 # Dependency to get the database session
 def get_db():
@@ -51,13 +40,11 @@ def get_db():
     finally:
         db.close()
 
-
 @app.post("/customize-pdf/")
 async def customize_pdf(
     pdf_file: UploadFile = File(...),
     orientation: Optional[str] = Form("portrait"),
     copies: Optional[int] = Form(1),
-    db: SessionLocal = next(get_db()),
 ):
     """
     API to accept a PDF, customize it (rotate and duplicate), save it to the database, and return its ID.
@@ -75,6 +62,7 @@ async def customize_pdf(
         file_id = str(uuid.uuid4())
 
         # Save the PDF details to the database
+        db = next(get_db())
         new_pdf = PDFFile(
             file_id=file_id,
             file_name=os.path.basename(output_pdf_path),
@@ -91,10 +79,11 @@ async def customize_pdf(
 
 
 @app.get("/get-pdf/{file_id}")
-def get_pdf(file_id: str, db: SessionLocal = next(get_db())):
+def get_pdf(file_id: str):
     """
     API to retrieve a PDF from the database using its unique ID.
     """
+    db = next(get_db())
     pdf_file = db.query(PDFFile).filter(PDFFile.file_id == file_id).first()
 
     if not pdf_file:
@@ -134,3 +123,13 @@ def generate_pdf_with_customization(input_pdf_path: str, orientation: str, copie
         writer.write(output_pdf)
 
     return output_path
+
+
+if __name__ == "__main__":
+    import uvicorn
+    import os
+
+    # Use the port provided by Render, or default to 8000 for local testing
+    port = int(os.environ.get("PORT", 8000))
+    print(f"Starting server on host 0.0.0.0 and port {port}")
+    uvicorn.run("app:app", host="0.0.0.0", port=port, reload=False)
